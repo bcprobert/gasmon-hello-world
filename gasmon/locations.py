@@ -13,10 +13,12 @@ from gasmon.configuration import config
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+
 class Location(namedtuple('Location', 'x y id')):
     """
     A sensor location, consisting of x and y coordinates and a unique ID.
     """
+
 
 def get_locations(s3_bucket, locations_key):
     """
@@ -29,6 +31,7 @@ def get_locations(s3_bucket, locations_key):
     logger.info(f'Retrieved locations JSON from S3: {locations_json}')
     return _parse_locations_json(locations_json)
 
+
 def _download_file_from_s3(bucket, object_key):
     """
     Retrieve the object with the given key from Amazon S3
@@ -40,6 +43,7 @@ def _download_file_from_s3(bucket, object_key):
 
     # Download the object and decode it from bytes to a string
     return s3_client.get_object(Bucket=bucket, Key=object_key)['Body'].read().decode('utf-8')
+
 
 def _parse_locations_json(locations):
     """
