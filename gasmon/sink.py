@@ -6,8 +6,9 @@ from abc import abstractmethod, ABC
 from collections import deque, namedtuple
 from datetime import datetime
 import logging
-from time import time
+import time
 import csv
+from operator import itemgetter
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -49,9 +50,10 @@ class CalculatesAverage(Sink):
         self.expiry_time_ms = 1000 * expiry_time
 
         # Creates millisecond-size bins for calculating moving averages
-        current_time_ms = 1000 * time()
+        current_time_ms = 1000 * time.time()
         self.bins = deque(
-            [AverageBin(start=(current_time_ms - self.expiry_time_ms), end=(current_time_ms - self.expiry_time_ms), values=[])])
+            [AverageBin(start=(current_time_ms - self.expiry_time_ms), end=(current_time_ms - self.expiry_time_ms),
+                        values=[])])
 
     def handle(self, events):
         for event in events:
@@ -79,17 +81,23 @@ class CalculatesAverage(Sink):
         # Find the correct bin for an event and add the event's value
         bin_index = int(event.timestamp - self.bins[0].start) // self.averaging_period_ms
         self.bins[bin_index].values.append(event.value)
+        self.write_bins_to_file()
+
+    def write_bins_to_file(self):
+        # Write bin values to a csv file so overall intensity trends can be identified
         with open('Gas_Averages.csv', mode='w') as csv_file:
-            fieldnames = ['Bin Number', 'Average Value']
+            fieldnames = ['Bin Start', 'Bin End', 'Average Value']
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
             writer.writeheader()
             for i in range(len(self.bins)):
                 if len(self.bins[i].values) != 0:
                     writer.writerow(
-                        {'Bin Number': bin_index, 'Average Value': sum(self.bins[i].values)/len(self.bins[i].values)}) # Need to update bin index thing so its correct but averaging is working
+                        {'Bin Start': self.bins[i].average.start,
+                         'Bin End': self.bins[i].average.end,
+                         'Average Value': self.bins[i].average.value})
 
     def maybe_expire_first_bin_and_get_average(self):
-        current_time_ms = 1000 * time()
+        current_time_ms = 1000 * time.time()
         if current_time_ms - self.expiry_time_ms > self.bins[0].end:
             return self.bins.popleft()
 
@@ -108,3 +116,55 @@ class Average(namedtuple('Average', 'start end value')):
     """
     A record of the average value of events between two timestamps.
     """
+
+
+class EventLocation(namedtuple('EventLocation', 'x y value')):
+    """
+    An event location, consisting of x and y coordinates the intensity of gas at that event.
+    """
+
+
+class LocationAverage(Sink):
+    """
+    Calculates the weighted average of each location with an event registered there.
+    """
+
+    def __init__(self, locations):
+        self.locations = locations
+
+    def handle(self, events):
+        self.calculate_location_averages(events)
+
+    def find_event_locations(self, events):
+        event_locations = []
+        for location in self.locations:
+            for event in events:
+                if location.id == event.location_id:
+                    event_locations.append(EventLocation(
+                        x=location.x, y=location.y, value=event.value
+                    ))
+        return event_locations
+
+    def calculate_location_averages(self, events):
+        total_val = 0
+        weighted_x = 0
+        weighted_y = 0
+        event_details = self.find_event_locations(events)
+        for location_average in event_details:
+            weighted_x += location_average.x * location_average.value
+            weighted_y += location_average.y * location_average.value
+            total_val += location_average.value
+        weighted_x = weighted_x/total_val
+        weighted_y = weighted_y/total_val
+
+        self.write_location_averages_to_file(weighted_x, weighted_y)
+
+    @staticmethod
+    def write_location_averages_to_file(weighted_x, weighted_y): # need to put in a loop
+        with open('Location_Averages.csv', mode='w') as csvfile:
+            fieldnames = ['x', 'y']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerow({'x': weighted_x, 'y': weighted_y})
+
+

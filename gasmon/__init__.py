@@ -9,7 +9,7 @@ from gasmon.configuration import config
 from gasmon.locations import get_locations
 from gasmon.pipeline import FixedDurationSource, LocationFilter, DeDuplicator
 from gasmon.receiver import QueueSubscription, Receiver
-from gasmon.sink import CalculatesAverage
+from gasmon.sink import CalculatesAverage, LocationAverage
 
 root_logger = logging.getLogger()
 log_formatter = logging.Formatter('%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s')
@@ -44,6 +44,7 @@ def main():
 
     # Create the sink that will handle the events that come through the pipeline
     calculates_average = CalculatesAverage(int(config['averager']['average_period_seconds']), int(config['averager']['expiry_time_seconds']))
+    location_average = LocationAverage(locations)
 
     # Create an SQS queue that will be subscribed to the SNS topic
     sns_topic_arn = config['receiver']['sns_topic_arn']
@@ -51,6 +52,7 @@ def main():
         # Process events as they come in from the queue
         receiver = Receiver(queue_subscription)
         pipeline.sink(calculates_average).handle(receiver.get_events())
+        pipeline.sink(location_average).handle(receiver.get_events())
 
         # Show final stats
         print(f'\nProcessed {fixed_duration_source.events_processed} events in {run_time_seconds} seconds')
