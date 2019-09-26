@@ -8,7 +8,10 @@ from datetime import datetime
 import logging
 import time
 import csv
-from operator import itemgetter
+from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -133,38 +136,48 @@ class LocationAverage(Sink):
         self.locations = locations
 
     def handle(self, events):
-        self.calculate_location_averages(events)
+        self.find_event_locations(events)
 
     def find_event_locations(self, events):
         event_locations = []
-        for location in self.locations:
-            for event in events:
+        for event in events:
+            for location in self.locations:
                 if location.id == event.location_id:
                     event_locations.append(EventLocation(
                         x=location.x, y=location.y, value=event.value
                     ))
-        return event_locations
 
-    def calculate_location_averages(self, events):
-        total_val = 0
-        weighted_x = 0
-        weighted_y = 0
-        event_details = self.find_event_locations(events)
-        for location_average in event_details:
-            weighted_x += location_average.x * location_average.value
-            weighted_y += location_average.y * location_average.value
-            total_val += location_average.value
-        weighted_x = weighted_x/total_val
-        weighted_y = weighted_y/total_val
-
-        self.write_location_averages_to_file(weighted_x, weighted_y)
+        self.plot_results(event_locations)
 
     @staticmethod
-    def write_location_averages_to_file(weighted_x, weighted_y): # need to put in a loop
-        with open('Location_Averages.csv', mode='w') as csvfile:
-            fieldnames = ['x', 'y']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerow({'x': weighted_x, 'y': weighted_y})
+    def gauss(x, *parameters):
+        # Create a function that returns a gaussian distribution
+        a, b, c, d = parameters
+        y = a * np.exp(-np.power((x - b), 2.) / (2. * c ** 2.)) + d
+        return y
 
+    @staticmethod
+    def plot_results(event_locations):
+        x_points = []
+        y_points = []
+        values = []
+        for i in range(len(event_locations)):
+            x_points.append(event_locations[i].x)
+            y_points.append(event_locations[i].y)
+            values.append(event_locations[i].value)
 
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+
+        x = x_points
+        y = y_points
+        z = values
+        surf = ax.plot_trisurf(x, y, z, cmap='plasma', linewidth=0, antialiased=True)
+
+        fig.colorbar(surf)
+        ax.set_xlabel(r'x')
+        ax.set_ylabel(r'y')
+        ax.set_zlabel(r'Value')
+        ax.set_title('GasMon')
+
+        plt.show()
