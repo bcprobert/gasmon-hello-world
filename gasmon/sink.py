@@ -169,9 +169,4 @@ class LocationAverage(Sink):
         ax.set_zlabel(r'Value')
         ax.set_title('GasMon')
 
-        maximum = values.index(max(values))
-        print("The source of the gas is located at: (" + str(x_points[maximum]) + ", " + str(y_points[maximum]) + ").")
-
         plt.show()
-
-

@@ -51,7 +51,7 @@ def main():
     with QueueSubscription(sns_topic_arn) as queue_subscription:
         # Process events as they come in from the queue
         receiver = Receiver(queue_subscription)
-        # pipeline.sink(calculates_average).handle(receiver.get_events())
+        pipeline.sink(calculates_average).handle(receiver.get_events())
         pipeline.sink(location_average).handle(receiver.get_events())
 
         # Show final stats
