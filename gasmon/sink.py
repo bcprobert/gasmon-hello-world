@@ -8,10 +8,9 @@ from datetime import datetime
 import logging
 import time
 import csv
-from mpl_toolkits.mplot3d import Axes3D
-import numpy as np
-import matplotlib.pyplot as plt
 
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -150,13 +149,6 @@ class LocationAverage(Sink):
         self.plot_results(event_locations)
 
     @staticmethod
-    def gauss(x, *parameters):
-        # Create a function that returns a gaussian distribution
-        a, b, c, d = parameters
-        y = a * np.exp(-np.power((x - b), 2.) / (2. * c ** 2.)) + d
-        return y
-
-    @staticmethod
     def plot_results(event_locations):
         x_points = []
         y_points = []
@@ -169,10 +161,7 @@ class LocationAverage(Sink):
         fig = plt.figure()
         ax = fig.gca(projection='3d')
 
-        x = x_points
-        y = y_points
-        z = values
-        surf = ax.plot_trisurf(x, y, z, cmap='plasma', linewidth=0, antialiased=True)
+        surf = ax.plot_trisurf(x_points, y_points, values, cmap='viridis', linewidth=0, antialiased=True)
 
         fig.colorbar(surf)
         ax.set_xlabel(r'x')
@@ -180,4 +169,9 @@ class LocationAverage(Sink):
         ax.set_zlabel(r'Value')
         ax.set_title('GasMon')
 
+        maximum = values.index(max(values))
+        print("The source of the gas is located at: (" + str(x_points[maximum]) + ", " + str(y_points[maximum]) + ").")
+
         plt.show()
+
+
